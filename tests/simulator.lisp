@@ -28,6 +28,33 @@
                 (apply-one-qubit-gates initial-bit left)
                 (apply-one-qubit-gates initial-bit right))))
 
+(defun approximately-vector-up-to-global-phase=
+    (left right &optional (tolerance 1.0d-12))
+  "Return true when LEFT and RIGHT differ only by one unit global phase."
+  (when (= (length left) (length right))
+    (let ((pivot (position-if
+                  (lambda (value) (> (abs value) tolerance))
+                  right)))
+      (if (null pivot)
+          (approximately-vector= left right tolerance)
+          (let ((phase (/ (aref left pivot) (aref right pivot))))
+            (and (approximately= (abs phase) 1.0d0 tolerance)
+                 (loop for index below (length left)
+                       always
+                       (approximately= (aref left index)
+                                       (* phase (aref right index))
+                                       tolerance))))))))
+
+(defun one-qubit-gate-sequences-equal-up-to-global-phase-p (left right)
+  "Compare two one-qubit operators while ignoring one shared global phase."
+  (approximately-vector-up-to-global-phase=
+   (concatenate 'vector
+                (apply-one-qubit-gates 0 left)
+                (apply-one-qubit-gates 1 left))
+   (concatenate 'vector
+                (apply-one-qubit-gates 0 right)
+                (apply-one-qubit-gates 1 right))))
+
 (defun make-basis-state (qubit-count basis-index)
   "Create QUBIT-COUNT qubits initialized to BASIS-INDEX."
   (let ((state (make-zero-state qubit-count)))
@@ -45,7 +72,7 @@
     (ok (normalized-p state))))
 
 (deftest x-gate
-  (testing "X maps |0> to |1>"
+  (testing "X |0> = |1>"
     (ok (approximately-vector=
          (apply-one-qubit-gates 0 (list #'x))
          #(#C(0.0d0 0.0d0) #C(1.0d0 0.0d0)))))
@@ -56,7 +83,7 @@
 
 (deftest h-gate
   (let ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0))))
-    (testing "H maps |0> to equal positive amplitudes"
+    (testing "H |0> = (|0> + |1>)/sqrt(2)"
       (ok (approximately-vector=
            (apply-one-qubit-gates 0 (list #'h))
            (vector (complex inverse-sqrt-two 0.0d0)
@@ -72,7 +99,7 @@
     (ok (approximately-vector=
          (apply-one-qubit-gates 0 (list #'z))
          #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0)))))
-  (testing "Z negates the |1> amplitude"
+  (testing "Z |1> = -|1>"
     (ok (approximately-vector=
          (apply-one-qubit-gates 1 (list #'z))
          #(#C(0.0d0 0.0d0) #C(-1.0d0 0.0d0))))))
@@ -82,7 +109,7 @@
     (ok (approximately-vector=
          (apply-one-qubit-gates 0 (list #'s))
          #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0)))))
-  (testing "S multiplies the |1> amplitude by i"
+  (testing "S |1> = i|1>"
     (ok (approximately-vector=
          (apply-one-qubit-gates 1 (list #'s))
          #(#C(0.0d0 0.0d0) #C(0.0d0 1.0d0))))))
@@ -93,9 +120,46 @@
       (ok (approximately-vector=
            (apply-one-qubit-gates 0 (list #'t-gate))
            #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0)))))
-    (testing "T applies a pi/4 phase to |1>"
+    (testing "T |1> = exp(i*pi/4)|1>"
       (ok (approximately-vector=
            (apply-one-qubit-gates 1 (list #'t-gate))
+           (vector #C(0.0d0 0.0d0)
+                   (complex inverse-sqrt-two inverse-sqrt-two)))))))
+
+(deftest rx-gate
+  (testing "RX(pi) |0> = -i|1>"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates
+          0 (list (lambda (state qubit) (rx state qubit pi))))
+         #(#C(0.0d0 0.0d0) #C(0.0d0 -1.0d0)))))
+  (testing "RX preserves normalization for a nontrivial angle"
+    (let ((state (make-zero-state 1)))
+      (rx state 0 (/ pi 3))
+      (ok (normalized-p state)))))
+
+(deftest ry-gate
+  (testing "RY(pi) |0> = |1>"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates
+          0 (list (lambda (state qubit) (ry state qubit pi))))
+         #(#C(0.0d0 0.0d0) #C(1.0d0 0.0d0)))))
+  (testing "RY(pi) |1> = -|0>"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates
+          1 (list (lambda (state qubit) (ry state qubit pi))))
+         #(#C(-1.0d0 0.0d0) #C(0.0d0 0.0d0))))))
+
+(deftest rz-gate
+  (let ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0))))
+    (testing "RZ(pi/2) applies opposite phases to |0> and |1>"
+      (ok (approximately-vector=
+           (apply-one-qubit-gates
+            0 (list (lambda (state qubit) (rz state qubit (/ pi 2)))))
+           (vector (complex inverse-sqrt-two (- inverse-sqrt-two))
+                   #C(0.0d0 0.0d0))))
+      (ok (approximately-vector=
+           (apply-one-qubit-gates
+            1 (list (lambda (state qubit) (rz state qubit (/ pi 2)))))
            (vector #C(0.0d0 0.0d0)
                    (complex inverse-sqrt-two inverse-sqrt-two)))))))
 
@@ -154,6 +218,44 @@
        (list #'h #'x #'h)
        (list #'z))))
 
+(deftest rx-pi-equals-x-up-to-global-phase
+  (ok (one-qubit-gate-sequences-equal-up-to-global-phase-p
+       (list (lambda (state qubit) (rx state qubit pi)))
+       (list #'x))))
+
+(deftest rz-pi-equals-z-up-to-global-phase
+  (ok (one-qubit-gate-sequences-equal-up-to-global-phase-p
+       (list (lambda (state qubit) (rz state qubit pi)))
+       (list #'z))))
+
+(deftest rz-half-pi-equals-s-up-to-global-phase
+  (ok (one-qubit-gate-sequences-equal-up-to-global-phase-p
+       (list (lambda (state qubit) (rz state qubit (/ pi 2))))
+       (list #'s))))
+
+(deftest rz-quarter-pi-equals-t-up-to-global-phase
+  (ok (one-qubit-gate-sequences-equal-up-to-global-phase-p
+       (list (lambda (state qubit) (rz state qubit (/ pi 4))))
+       (list #'t-gate))))
+
+(deftest rx-inverse-rotation-equals-identity
+  (ok (one-qubit-gate-sequences=
+       (list (lambda (state qubit) (rx state qubit (/ pi 3)))
+             (lambda (state qubit) (rx state qubit (- (/ pi 3)))))
+       '())))
+
+(deftest ry-inverse-rotation-equals-identity
+  (ok (one-qubit-gate-sequences=
+       (list (lambda (state qubit) (ry state qubit (/ pi 3)))
+             (lambda (state qubit) (ry state qubit (- (/ pi 3)))))
+       '())))
+
+(deftest rz-inverse-rotation-equals-identity
+  (ok (one-qubit-gate-sequences=
+       (list (lambda (state qubit) (rz state qubit (/ pi 3)))
+             (lambda (state qubit) (rz state qubit (- (/ pi 3)))))
+       '())))
+
 (deftest cnot-squared-equals-identity
   (dotimes (basis-index 4)
     (let* ((state (make-basis-state 2 basis-index))
@@ -164,9 +266,17 @@
           (format nil "CNOT^2 restores basis index ~D" basis-index)))))
 
 (deftest bell-state
-  (let ((state (make-zero-state 2)))
+  (let ((state (make-zero-state 2))
+        (inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0))))
     (h state 0)
     (cnot state 0 1)
+    (testing "H on q0 followed by CNOT q0 q1 creates a Bell state"
+      (ok (approximately-vector=
+           (amplitudes state)
+           (vector (complex inverse-sqrt-two 0.0d0)
+                   #C(0.0d0 0.0d0)
+                   #C(0.0d0 0.0d0)
+                   (complex inverse-sqrt-two 0.0d0)))))
     (let ((probabilities (probabilities state)))
       (ok (approximately= 0.5d0 (aref probabilities 0)))
       (ok (approximately= 0.0d0 (aref probabilities 1)))
@@ -219,6 +329,18 @@
              (expected (complex inverse-sqrt-two (- inverse-sqrt-two))))
         (ok (approximately= expected
                             (aref (amplitudes state) 1))))
+      (ok (normalized-p state)))))
+
+(deftest rotation-gate-circuit-execution
+  (let ((circuit (qcircuit
+                   (rx 0 0.25d0)
+                   (ry 0 0.5d0)
+                   (rz 0 0.75d0))))
+    (ok (equal (qlos:circuit-operations circuit)
+               '((:rx 0 0.25d0) (:ry 0 0.5d0) (:rz 0 0.75d0))))
+    (multiple-value-bind (state measurements)
+        (run-circuit circuit)
+      (ok (null measurements))
       (ok (normalized-p state)))))
 
 (deftest benchmark-circuit

@@ -36,6 +36,18 @@ Use CIRCUIT-OPERATIONS to obtain a caller-owned list in execution order."
   "Append a T operation for QUBIT to CIRCUIT and return CIRCUIT."
   (%append-operation circuit (list :t qubit)))
 
+(defun circuit-rx (circuit qubit angle)
+  "Append an RX rotation of QUBIT by ANGLE radians and return CIRCUIT."
+  (%append-operation circuit (list :rx qubit angle)))
+
+(defun circuit-ry (circuit qubit angle)
+  "Append an RY rotation of QUBIT by ANGLE radians and return CIRCUIT."
+  (%append-operation circuit (list :ry qubit angle)))
+
+(defun circuit-rz (circuit qubit angle)
+  "Append an RZ rotation of QUBIT by ANGLE radians and return CIRCUIT."
+  (%append-operation circuit (list :rz qubit angle)))
+
 (defun circuit-cnot (circuit control target)
   "Append a CNOT operation from CONTROL to TARGET and return CIRCUIT."
   (%append-operation circuit (list :cnot control target)))
@@ -78,6 +90,9 @@ execution order as (QUBIT . BIT) pairs."
         (:z (z state (second operation)))
         (:s (s state (second operation)))
         (:t (t-gate state (second operation)))
+        (:rx (rx state (second operation) (third operation)))
+        (:ry (ry state (second operation) (third operation)))
+        (:rz (rz state (second operation) (third operation)))
         (:cnot (cnot state (second operation) (third operation)))
         (:measure
          (push (cons (second operation)
@@ -99,7 +114,7 @@ execution order as (QUBIT . BIT) pairs."
   (defun %circuit-form-qubits (form)
     "Return the literal qubit operands referenced by a QCIRCUIT FORM."
     (case (%circuit-operation-name form)
-      ((:x :h :z :s :t :measure) (list (second form)))
+      ((:x :h :z :s :t :rx :ry :rz :measure) (list (second form)))
       (:cnot (list (second form) (third form)))
       (otherwise (error "Unknown QCIRCUIT operation: ~S" form)))))
 
@@ -107,8 +122,10 @@ execution order as (QUBIT . BIT) pairs."
   "Build and return a circuit from literal operation forms.
 
 Supported forms are (X QUBIT), (H QUBIT), (Z QUBIT), (S QUBIT), (T QUBIT),
-(CNOT CONTROL TARGET), and (MEASURE QUBIT).  The circuit width is inferred from
-the greatest referenced zero-based qubit index."
+(RX QUBIT ANGLE), (RY QUBIT ANGLE), (RZ QUBIT ANGLE),
+(CNOT CONTROL TARGET), and (MEASURE QUBIT).  Rotation angles are in radians.
+The circuit width is inferred from the greatest referenced zero-based qubit
+index."
   (when (null operations)
     (error "QCIRCUIT requires at least one operation."))
   (let* ((qubits (mapcan #'%circuit-form-qubits operations))
@@ -126,6 +143,15 @@ the greatest referenced zero-based qubit index."
               (:z `(circuit-z ,circuit ,(second operation)))
               (:s `(circuit-s ,circuit ,(second operation)))
               (:t `(circuit-t ,circuit ,(second operation)))
+              (:rx `(circuit-rx ,circuit
+                                ,(second operation)
+                                ,(third operation)))
+              (:ry `(circuit-ry ,circuit
+                                ,(second operation)
+                                ,(third operation)))
+              (:rz `(circuit-rz ,circuit
+                                ,(second operation)
+                                ,(third operation)))
               (:cnot `(circuit-cnot ,circuit
                                     ,(second operation)
                                     ,(third operation)))

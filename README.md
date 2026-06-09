@@ -65,9 +65,14 @@ Supported circuit forms are currently:
 (z qubit)
 (s qubit)
 (t qubit)
+(rx qubit angle)
+(ry qubit angle)
+(rz qubit angle)
 (cnot control target)
 (measure qubit)
 ```
+
+Rotation angles are expressed in radians.
 
 ## Build A Circuit Procedurally
 
@@ -101,6 +106,7 @@ Create a state and apply gates without constructing a circuit:
 ```lisp
 (let ((state (qlos:make-zero-state 2)))
   (qlos:h state 0)
+  (qlos:rz state 0 (/ pi 4))
   (qlos:cnot state 0 1)
   (values (qlos:amplitudes state)
           (qlos:probabilities state)
@@ -180,8 +186,9 @@ qlos.asd            ASDF system definitions
 
 ## Current Scope
 
-The current public gate set is `X`, `H`, `Z`, `S`, `T`, and `CNOT`, with
-computational-basis measurement. The direct T-gate function is named `t-gate`
-to avoid conflict with Common Lisp's constant `T`; its circuit form remains
-`(t qubit)`. QLOS does not yet provide repeated-shot aggregation, noise models,
-hardware execution, circuit serialization, or compiler passes.
+The current public gate set is `X`, `H`, `Z`, `S`, `T`, `RX`, `RY`, `RZ`, and
+`CNOT`, with computational-basis measurement. The direct T-gate function is
+named `t-gate` to avoid conflict with Common Lisp's constant `T`; its circuit
+form remains `(t qubit)`. Rotation APIs accept angles in radians. QLOS does not
+yet provide repeated-shot aggregation, noise models, hardware execution,
+circuit serialization, or compiler passes.

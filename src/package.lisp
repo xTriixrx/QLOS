@@ -16,6 +16,9 @@
    #:z
    #:s
    #:t-gate
+   #:rx
+   #:ry
+   #:rz
    #:cnot
    ;; Circuits
    #:quantum-circuit
@@ -27,6 +30,9 @@
    #:circuit-z
    #:circuit-s
    #:circuit-t
+   #:circuit-rx
+   #:circuit-ry
+   #:circuit-rz
    #:circuit-cnot
    #:circuit-measure
    #:run-circuit

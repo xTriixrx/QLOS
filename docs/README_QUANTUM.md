@@ -200,8 +200,48 @@ QLOS provides `Z`, `S`, and `T` for direct phase manipulation:
 `Z` multiplies the `|1>` amplitude by `-1`, `S` multiplies it by `i`, and `T`
 multiplies it by `exp(i*pi/4)`. The direct T-gate function is `qlos:t-gate`
 because `T` is a reserved Common Lisp constant. Inside `qcircuit`, the form is
-still written `(t qubit)`. Future rotation gates will permit arbitrary phase
-angles.
+still written `(t qubit)`.
+
+## Parameterized Rotations
+
+`RX`, `RY`, and `RZ` rotate a qubit around the corresponding Bloch-sphere axis.
+Angles are specified in radians:
+
+```lisp
+(let ((state (qlos:make-zero-state 1)))
+  (qlos:rx state 0 pi)
+  (qlos:amplitudes state))
+;; => approximately #(0 -i)
+```
+
+The direct API uses `(state qubit angle)`:
+
+```lisp
+(qlos:rx state 0 angle)
+(qlos:ry state 0 angle)
+(qlos:rz state 0 angle)
+```
+
+Circuit forms use `(qubit angle)`:
+
+```lisp
+(qlos:qcircuit
+  (rx 0 (/ pi 2))
+  (ry 0 (/ pi 3))
+  (rz 0 (/ pi 4)))
+```
+
+The standard definitions include half-angles:
+
+```text
+RX(theta) = exp(-i theta X / 2)
+RY(theta) = exp(-i theta Y / 2)
+RZ(theta) = exp(-i theta Z / 2)
+```
+
+Consequently, `RX(pi)` and `X` differ by an unobservable global phase.
+Likewise, `RZ(pi)`, `RZ(pi/2)`, and `RZ(pi/4)` correspond to `Z`, `S`, and `T`
+up to global phase.
 
 ## Multiple Qubits And Entanglement
 
@@ -353,7 +393,7 @@ results remain correlated.
 The current simulator models:
 
 - Ideal pure states.
-- Unitary `X`, `H`, `Z`, `S`, `T`, and `CNOT` operations.
+- Unitary `X`, `H`, `Z`, `S`, `T`, `RX`, `RY`, `RZ`, and `CNOT` operations.
 - Computational-basis measurement.
 - State collapse and renormalization.
 - Exact circuit ordering with floating-point arithmetic.
@@ -364,7 +404,6 @@ It does not currently model:
 - Mixed states or density matrices.
 - Physical gate duration or device connectivity.
 - Reset or classically conditioned gates.
-- Arbitrary rotation gates.
 - Hardware execution.
 
 These limitations matter when moving from simulator exercises to real quantum
@@ -390,7 +429,6 @@ After understanding the current simulator, useful next subjects are:
 - Tensor products and multi-qubit gate matrices.
 - Global phase versus relative phase.
 - Bloch-sphere representations of one-qubit states.
-- Parameterized rotations.
 - Repeated shots and statistical uncertainty.
 - Density matrices and noise channels.
 - Circuit decomposition and hardware-native gate sets.

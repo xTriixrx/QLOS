@@ -11,6 +11,9 @@
                 #:z
                 #:s
                 #:t-gate
+                #:rx
+                #:ry
+                #:rz
                 #:cnot
                 #:measure
                 #:qcircuit

@@ -81,6 +81,53 @@ qubit-one amplitude by exp(i*pi/4)."
      #C(1.0d0 0.0d0) #C(0.0d0 0.0d0)
      #C(0.0d0 0.0d0) (complex inverse-sqrt-two inverse-sqrt-two))))
 
+(defun %rotation-components (angle)
+  "Return cos(ANGLE/2) and sin(ANGLE/2) as double-floats."
+  (check-type angle real)
+  (let ((half-angle (/ (coerce angle 'double-float) 2.0d0)))
+    (values (cos half-angle) (sin half-angle))))
+
+(defun rx (state qubit angle)
+  "Rotate QUBIT in STATE by ANGLE radians around the Bloch-sphere X axis.
+
+The rotation follows RX(ANGLE) = exp(-i * ANGLE * X / 2).  STATE is mutated
+and returned."
+  (multiple-value-bind (cosine sine)
+      (%rotation-components angle)
+    (let ((diagonal (complex cosine 0.0d0))
+          (off-diagonal (complex 0.0d0 (- sine))))
+      (%apply-single-qubit-gate
+       state qubit
+       diagonal off-diagonal
+       off-diagonal diagonal))))
+
+(defun ry (state qubit angle)
+  "Rotate QUBIT in STATE by ANGLE radians around the Bloch-sphere Y axis.
+
+The rotation follows RY(ANGLE) = exp(-i * ANGLE * Y / 2).  STATE is mutated
+and returned."
+  (multiple-value-bind (cosine sine)
+      (%rotation-components angle)
+    (let ((cosine-entry (complex cosine 0.0d0))
+          (positive-sine (complex sine 0.0d0))
+          (negative-sine (complex (- sine) 0.0d0)))
+      (%apply-single-qubit-gate
+       state qubit
+       cosine-entry negative-sine
+       positive-sine cosine-entry))))
+
+(defun rz (state qubit angle)
+  "Rotate QUBIT in STATE by ANGLE radians around the Bloch-sphere Z axis.
+
+The rotation follows RZ(ANGLE) = exp(-i * ANGLE * Z / 2).  STATE is mutated
+and returned."
+  (multiple-value-bind (cosine sine)
+      (%rotation-components angle)
+    (%apply-single-qubit-gate
+     state qubit
+     (complex cosine (- sine)) #C(0.0d0 0.0d0)
+     #C(0.0d0 0.0d0) (complex cosine sine))))
+
 (defun cnot (state control target)
   "Apply controlled-X to STATE and return the mutated STATE.
 
