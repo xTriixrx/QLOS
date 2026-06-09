@@ -40,11 +40,46 @@ QUBIT."
 
 (defun h (state qubit)
   "Apply the Hadamard gate to QUBIT in STATE and return the mutated STATE."
+  (let* ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0)))
+         ;; Keep every matrix entry in the same numeric domain as the
+         ;; specialized complex double-float amplitude vector.
+         (positive (complex inverse-sqrt-two 0.0d0))
+         (negative (complex (- inverse-sqrt-two) 0.0d0)))
+    (%apply-single-qubit-gate
+     state qubit
+     positive positive
+     positive negative)))
+
+(defun z (state qubit)
+  "Apply Pauli-Z to QUBIT in STATE and return the mutated STATE.
+
+The Z gate leaves the qubit-zero amplitude unchanged and negates the
+qubit-one amplitude."
+  (%apply-single-qubit-gate
+   state qubit
+   #C(1.0d0 0.0d0) #C(0.0d0 0.0d0)
+   #C(0.0d0 0.0d0) #C(-1.0d0 0.0d0)))
+
+(defun s (state qubit)
+  "Apply the S phase gate to QUBIT in STATE and return the mutated STATE.
+
+The S gate leaves the qubit-zero amplitude unchanged and multiplies the
+qubit-one amplitude by i."
+  (%apply-single-qubit-gate
+   state qubit
+   #C(1.0d0 0.0d0) #C(0.0d0 0.0d0)
+   #C(0.0d0 0.0d0) #C(0.0d0 1.0d0)))
+
+(defun t-gate (state qubit)
+  "Apply the T phase gate to QUBIT in STATE and return the mutated STATE.
+
+The T gate leaves the qubit-zero amplitude unchanged and multiplies the
+qubit-one amplitude by exp(i*pi/4)."
   (let ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0))))
     (%apply-single-qubit-gate
      state qubit
-     inverse-sqrt-two inverse-sqrt-two
-     inverse-sqrt-two (- inverse-sqrt-two))))
+     #C(1.0d0 0.0d0) #C(0.0d0 0.0d0)
+     #C(0.0d0 0.0d0) (complex inverse-sqrt-two inverse-sqrt-two))))
 
 (defun cnot (state control target)
   "Apply controlled-X to STATE and return the mutated STATE.

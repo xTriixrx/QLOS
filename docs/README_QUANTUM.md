@@ -187,8 +187,21 @@ During the second gate, amplitude contributions add for `|0>` and cancel for
 `|1>`. This is interference. It is not equivalent to flipping a fair coin
 twice.
 
-The current QLOS gate set has limited phase manipulation. Future `Z`, `S`, `T`,
-and rotation gates will make phase experiments more direct.
+QLOS provides `Z`, `S`, and `T` for direct phase manipulation:
+
+```lisp
+(let ((state (qlos:make-zero-state 1)))
+  (qlos:h state 0)
+  (qlos:z state 0)
+  (qlos:amplitudes state))
+;; => approximately #(0.7071 -0.7071)
+```
+
+`Z` multiplies the `|1>` amplitude by `-1`, `S` multiplies it by `i`, and `T`
+multiplies it by `exp(i*pi/4)`. The direct T-gate function is `qlos:t-gate`
+because `T` is a reserved Common Lisp constant. Inside `qcircuit`, the form is
+still written `(t qubit)`. Future rotation gates will permit arbitrary phase
+angles.
 
 ## Multiple Qubits And Entanglement
 
@@ -340,7 +353,7 @@ results remain correlated.
 The current simulator models:
 
 - Ideal pure states.
-- Unitary `X`, `H`, and `CNOT` operations.
+- Unitary `X`, `H`, `Z`, `S`, `T`, and `CNOT` operations.
 - Computational-basis measurement.
 - State collapse and renormalization.
 - Exact circuit ordering with floating-point arithmetic.
@@ -351,7 +364,7 @@ It does not currently model:
 - Mixed states or density matrices.
 - Physical gate duration or device connectivity.
 - Reset or classically conditioned gates.
-- Phase gates and arbitrary rotations.
+- Arbitrary rotation gates.
 - Hardware execution.
 
 These limitations matter when moving from simulator exercises to real quantum

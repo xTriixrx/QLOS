@@ -6,7 +6,7 @@
 
 Operations are accumulated in reverse order for constant-time insertion.
 Use CIRCUIT-OPERATIONS to obtain a caller-owned list in execution order."
-  (qubit-count 0 :type (integer 1 *) :read-only t)
+  (qubit-count 1 :type (integer 1 *) :read-only t)
   (operations '() :type list))
 
 (defun %append-operation (circuit operation)
@@ -23,6 +23,18 @@ Use CIRCUIT-OPERATIONS to obtain a caller-owned list in execution order."
 (defun circuit-h (circuit qubit)
   "Append a Hadamard operation for QUBIT to CIRCUIT and return CIRCUIT."
   (%append-operation circuit (list :h qubit)))
+
+(defun circuit-z (circuit qubit)
+  "Append a Z operation for QUBIT to CIRCUIT and return CIRCUIT."
+  (%append-operation circuit (list :z qubit)))
+
+(defun circuit-s (circuit qubit)
+  "Append an S operation for QUBIT to CIRCUIT and return CIRCUIT."
+  (%append-operation circuit (list :s qubit)))
+
+(defun circuit-t (circuit qubit)
+  "Append a T operation for QUBIT to CIRCUIT and return CIRCUIT."
+  (%append-operation circuit (list :t qubit)))
 
 (defun circuit-cnot (circuit control target)
   "Append a CNOT operation from CONTROL to TARGET and return CIRCUIT."
@@ -63,6 +75,9 @@ execution order as (QUBIT . BIT) pairs."
       (case (first operation)
         (:x (x state (second operation)))
         (:h (h state (second operation)))
+        (:z (z state (second operation)))
+        (:s (s state (second operation)))
+        (:t (t-gate state (second operation)))
         (:cnot (cnot state (second operation) (third operation)))
         (:measure
          (push (cons (second operation)
@@ -84,16 +99,16 @@ execution order as (QUBIT . BIT) pairs."
   (defun %circuit-form-qubits (form)
     "Return the literal qubit operands referenced by a QCIRCUIT FORM."
     (case (%circuit-operation-name form)
-      ((:x :h :measure) (list (second form)))
+      ((:x :h :z :s :t :measure) (list (second form)))
       (:cnot (list (second form) (third form)))
       (otherwise (error "Unknown QCIRCUIT operation: ~S" form)))))
 
 (defmacro qcircuit (&body operations)
   "Build and return a circuit from literal operation forms.
 
-Supported forms are (X QUBIT), (H QUBIT), (CNOT CONTROL TARGET), and
-(MEASURE QUBIT).  The circuit width is inferred from the greatest referenced
-zero-based qubit index."
+Supported forms are (X QUBIT), (H QUBIT), (Z QUBIT), (S QUBIT), (T QUBIT),
+(CNOT CONTROL TARGET), and (MEASURE QUBIT).  The circuit width is inferred from
+the greatest referenced zero-based qubit index."
   (when (null operations)
     (error "QCIRCUIT requires at least one operation."))
   (let* ((qubits (mapcan #'%circuit-form-qubits operations))
@@ -108,6 +123,9 @@ zero-based qubit index."
             (ecase (%circuit-operation-name operation)
               (:x `(circuit-x ,circuit ,(second operation)))
               (:h `(circuit-h ,circuit ,(second operation)))
+              (:z `(circuit-z ,circuit ,(second operation)))
+              (:s `(circuit-s ,circuit ,(second operation)))
+              (:t `(circuit-t ,circuit ,(second operation)))
               (:cnot `(circuit-cnot ,circuit
                                     ,(second operation)
                                     ,(third operation)))

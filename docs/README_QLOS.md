@@ -45,7 +45,7 @@ The repository currently contains:
 
 - An ideal pure-state state-vector simulator.
 - Specialized complex double-float amplitude storage.
-- In-place `X`, `H`, and `CNOT` gate kernels.
+- In-place `X`, `H`, `Z`, `S`, `T`, and `CNOT` gate kernels.
 - Computational-basis measurement with state collapse.
 - A circuit representation and Lisp circuit DSL.
 - Circuit execution, correctness tests, and a benchmark workload.
@@ -150,7 +150,7 @@ inside the intermediate representation.
 The next simulator work should make small algorithms and meaningful
 experiments possible:
 
-- Add `Z`, `S`, `T`, and parameterized rotation gates.
+- Add parameterized rotation gates.
 - Support arbitrary computational-basis initialization.
 - Add repeated-shot execution and count aggregation.
 - Validate circuit operands and reject invalid operations early.

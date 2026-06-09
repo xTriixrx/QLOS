@@ -8,6 +8,9 @@
                 #:normalized-p
                 #:x
                 #:h
+                #:z
+                #:s
+                #:t-gate
                 #:cnot
                 #:measure
                 #:qcircuit

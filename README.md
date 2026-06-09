@@ -62,6 +62,9 @@ Supported circuit forms are currently:
 ```lisp
 (x qubit)
 (h qubit)
+(z qubit)
+(s qubit)
+(t qubit)
 (cnot control target)
 (measure qubit)
 ```
@@ -177,6 +180,8 @@ qlos.asd            ASDF system definitions
 
 ## Current Scope
 
-The current public gate set is `X`, `H`, and `CNOT`, with computational-basis
-measurement. QLOS does not yet provide repeated-shot aggregation, noise models,
+The current public gate set is `X`, `H`, `Z`, `S`, `T`, and `CNOT`, with
+computational-basis measurement. The direct T-gate function is named `t-gate`
+to avoid conflict with Common Lisp's constant `T`; its circuit form remains
+`(t qubit)`. QLOS does not yet provide repeated-shot aggregation, noise models,
 hardware execution, circuit serialization, or compiler passes.

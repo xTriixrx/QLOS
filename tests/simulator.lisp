@@ -4,6 +4,37 @@
   "Return true when LEFT and RIGHT differ by less than TOLERANCE."
   (< (abs (- left right)) tolerance))
 
+(defun approximately-vector= (left right &optional (tolerance 1.0d-12))
+  "Return true when corresponding entries in LEFT and RIGHT are approximately equal."
+  (and (= (length left) (length right))
+       (loop for index below (length left)
+             always (approximately= (aref left index)
+                                    (aref right index)
+                                    tolerance))))
+
+(defun apply-one-qubit-gates (initial-bit gates)
+  "Apply GATES to an initial one-qubit basis state and return its amplitudes."
+  (let ((state (make-zero-state 1)))
+    (when (= initial-bit 1)
+      (x state 0))
+    (dolist (gate gates)
+      (funcall gate state 0))
+    (amplitudes state)))
+
+(defun one-qubit-gate-sequences= (left right)
+  "Return true when LEFT and RIGHT act equally on both basis states."
+  (loop for initial-bit from 0 to 1
+        always (approximately-vector=
+                (apply-one-qubit-gates initial-bit left)
+                (apply-one-qubit-gates initial-bit right))))
+
+(defun make-basis-state (qubit-count basis-index)
+  "Create QUBIT-COUNT qubits initialized to BASIS-INDEX."
+  (let ((state (make-zero-state qubit-count)))
+    (dotimes (qubit qubit-count state)
+      (when (logbitp qubit basis-index)
+        (x state qubit)))))
+
 (deftest zero-state
   (let ((state (make-zero-state 2)))
     (ok (equalp (amplitudes state)
@@ -13,23 +44,124 @@
                   #C(0.0d0 0.0d0))))
     (ok (normalized-p state))))
 
-(deftest single-qubit-gates
+(deftest x-gate
   (testing "X maps |0> to |1>"
-    (let ((state (make-zero-state 1)))
-      (x state 0)
-      (ok (equalp (probabilities state) #(0.0d0 1.0d0)))))
-  (testing "H creates an equal superposition"
-    (let ((state (make-zero-state 1)))
-      (h state 0)
-      (ok (approximately= 0.5d0 (aref (probabilities state) 0)))
-      (ok (approximately= 0.5d0 (aref (probabilities state) 1)))
-      (ok (normalized-p state))))
-  (testing "H applied twice interferes back to |0>"
-    (let ((state (make-zero-state 1)))
-      (h state 0)
-      (h state 0)
-      (ok (approximately= 1.0d0 (aref (probabilities state) 0)))
-      (ok (approximately= 0.0d0 (aref (probabilities state) 1))))))
+    (ok (approximately-vector=
+         (apply-one-qubit-gates 0 (list #'x))
+         #(#C(0.0d0 0.0d0) #C(1.0d0 0.0d0)))))
+  (testing "X maps |1> to |0>"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates 1 (list #'x))
+         #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0))))))
+
+(deftest h-gate
+  (let ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0))))
+    (testing "H maps |0> to equal positive amplitudes"
+      (ok (approximately-vector=
+           (apply-one-qubit-gates 0 (list #'h))
+           (vector (complex inverse-sqrt-two 0.0d0)
+                   (complex inverse-sqrt-two 0.0d0)))))
+    (testing "H maps |1> to amplitudes with opposite signs"
+      (ok (approximately-vector=
+           (apply-one-qubit-gates 1 (list #'h))
+           (vector (complex inverse-sqrt-two 0.0d0)
+                   (complex (- inverse-sqrt-two) 0.0d0)))))))
+
+(deftest z-gate
+  (testing "Z leaves |0> unchanged"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates 0 (list #'z))
+         #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0)))))
+  (testing "Z negates the |1> amplitude"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates 1 (list #'z))
+         #(#C(0.0d0 0.0d0) #C(-1.0d0 0.0d0))))))
+
+(deftest s-gate
+  (testing "S leaves |0> unchanged"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates 0 (list #'s))
+         #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0)))))
+  (testing "S multiplies the |1> amplitude by i"
+    (ok (approximately-vector=
+         (apply-one-qubit-gates 1 (list #'s))
+         #(#C(0.0d0 0.0d0) #C(0.0d0 1.0d0))))))
+
+(deftest t-gate-test
+  (let ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0))))
+    (testing "T leaves |0> unchanged"
+      (ok (approximately-vector=
+           (apply-one-qubit-gates 0 (list #'t-gate))
+           #(#C(1.0d0 0.0d0) #C(0.0d0 0.0d0)))))
+    (testing "T applies a pi/4 phase to |1>"
+      (ok (approximately-vector=
+           (apply-one-qubit-gates 1 (list #'t-gate))
+           (vector #C(0.0d0 0.0d0)
+                   (complex inverse-sqrt-two inverse-sqrt-two)))))))
+
+(deftest cnot-gate
+  (testing "CNOT maps every computational basis state correctly"
+    (dolist (mapping '((0 . 0) (1 . 3) (2 . 2) (3 . 1)))
+      (let ((state (make-basis-state 2 (car mapping)))
+            (expected (make-basis-state 2 (cdr mapping))))
+        (cnot state 0 1)
+        (ok (approximately-vector= (amplitudes state)
+                                   (amplitudes expected))
+            (format nil "CNOT maps basis index ~D to ~D"
+                    (car mapping) (cdr mapping)))))))
+
+(deftest t-squared-equals-s
+  (ok (one-qubit-gate-sequences=
+       (list #'t-gate #'t-gate)
+       (list #'s))))
+
+(deftest s-squared-equals-z
+  (ok (one-qubit-gate-sequences=
+       (list #'s #'s)
+       (list #'z))))
+
+(deftest t-fourth-equals-z
+  (ok (one-qubit-gate-sequences=
+       (list #'t-gate #'t-gate #'t-gate #'t-gate)
+       (list #'z))))
+
+(deftest t-eighth-equals-identity
+  (ok (one-qubit-gate-sequences=
+       (loop repeat 8 collect #'t-gate)
+       '())))
+
+(deftest s-fourth-equals-identity
+  (ok (one-qubit-gate-sequences=
+       (list #'s #'s #'s #'s)
+       '())))
+
+(deftest x-squared-equals-identity
+  (ok (one-qubit-gate-sequences= (list #'x #'x) '())))
+
+(deftest h-squared-equals-identity
+  (ok (one-qubit-gate-sequences= (list #'h #'h) '())))
+
+(deftest z-squared-equals-identity
+  (ok (one-qubit-gate-sequences= (list #'z #'z) '())))
+
+(deftest h-z-h-equals-x
+  (ok (one-qubit-gate-sequences=
+       (list #'h #'z #'h)
+       (list #'x))))
+
+(deftest h-x-h-equals-z
+  (ok (one-qubit-gate-sequences=
+       (list #'h #'x #'h)
+       (list #'z))))
+
+(deftest cnot-squared-equals-identity
+  (dotimes (basis-index 4)
+    (let* ((state (make-basis-state 2 basis-index))
+           (initial (amplitudes state)))
+      (cnot state 0 1)
+      (cnot state 0 1)
+      (ok (approximately-vector= initial (amplitudes state))
+          (format nil "CNOT^2 restores basis index ~D" basis-index)))))
 
 (deftest bell-state
   (let ((state (make-zero-state 2)))
@@ -63,11 +195,31 @@
 (deftest circuit-operators-are-package-independent
   (let ((circuit (qcircuit
                    (cl-user::h 0)
+                   (cl-user::z 0)
+                   (cl-user::s 0)
+                   (cl-user::t 0)
                    (cl-user::measure 0))))
     (multiple-value-bind (state measurements)
         (run-circuit circuit)
       (ok (normalized-p state))
       (ok (= 1 (length measurements))))))
+
+(deftest phase-gate-circuit-execution
+  (let ((circuit (qcircuit
+                   (x 0)
+                   (z 0)
+                   (s 0)
+                   (t 0))))
+    (ok (equal (qlos:circuit-operations circuit)
+               '((:x 0) (:z 0) (:s 0) (:t 0))))
+    (multiple-value-bind (state measurements)
+        (run-circuit circuit)
+      (ok (null measurements))
+      (let* ((inverse-sqrt-two (/ 1.0d0 (sqrt 2.0d0)))
+             (expected (complex inverse-sqrt-two (- inverse-sqrt-two))))
+        (ok (approximately= expected
+                            (aref (amplitudes state) 1))))
+      (ok (normalized-p state)))))
 
 (deftest benchmark-circuit
   (let ((circuit (make-benchmark-circuit :qubits 4 :layers 2)))

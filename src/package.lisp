@@ -13,6 +13,9 @@
    ;; Gates
    #:x
    #:h
+   #:z
+   #:s
+   #:t-gate
    #:cnot
    ;; Circuits
    #:quantum-circuit
@@ -21,6 +24,9 @@
    #:circuit-operations
    #:circuit-x
    #:circuit-h
+   #:circuit-z
+   #:circuit-s
+   #:circuit-t
    #:circuit-cnot
    #:circuit-measure
    #:run-circuit

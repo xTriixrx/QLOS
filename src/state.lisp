@@ -14,8 +14,11 @@ QUBIT-COUNT determines the register width.  AMPLITUDES contains one complex
 value for each computational basis state and therefore has length 2^N.  The
 public constructor and copier are defined separately so they can preserve this
 relationship."
-  (qubit-count 0 :type (integer 1 *) :read-only t)
-  (amplitudes #() :type amplitude-vector))
+  ;; Slot initforms must satisfy their declared types even though the private
+  ;; constructor always supplies both values explicitly.
+  (qubit-count 1 :type (integer 1 *) :read-only t)
+  (amplitudes (make-array 0 :element-type '(complex double-float))
+              :type amplitude-vector))
 
 (defun make-zero-state (qubit-count)
   "Create a QUBIT-COUNT register initialized to the all-zero basis state.
